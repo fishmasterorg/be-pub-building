@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: be-pub-building
+  labels:
+    app: be-pub-building
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: be-pub-building
+  template:
+    metadata:
+      labels:
+        app: be-pub-building
+    spec:
+      containers:
+        - name: be-pub-building
+          image: gcr.io/cloud-solutions-images/be-pub-building:1.0.0
+          env:
+            - name: SPRING_PROFILE
+              value: "spring_profile"
+          ports:
+            - containerPort: 8115
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8115
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 6

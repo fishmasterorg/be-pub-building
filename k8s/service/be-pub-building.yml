@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: be-pub-building
+spec:
+  selector:
+    app: be-pub-building
+  ports:
+    - protocol: TCP
+      port: 8115
+      targetPort: 8115

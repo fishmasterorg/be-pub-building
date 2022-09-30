@@ -1,0 +1,44 @@
+steps:
+  - name: 'gcr.io/cloud-builders/git'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        git clone https://$$GITLAB_USERNAME:$$GITLAB_PASSWORD@gitlab.com/fishmaster-project/fishmaster-online/${_IMAGE_NAME}
+        mv ${_IMAGE_NAME}/application.properties src/main/resources/
+        mv ${_IMAGE_NAME}/gradle.properties .
+    secretEnv: ['GITLAB_USERNAME', 'GITLAB_PASSWORD']
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'builds'
+      - 'submit'
+      - '--gcs-log-dir=gs://${_STORAGE_BUCKET_NAME}/logs/submits/${_IMAGE_NAME}'
+      - '--gcs-source-staging-dir=gs://${_STORAGE_BUCKET_NAME}/source/${_IMAGE_NAME}'
+      - '-t'
+      - 'gcr.io/${PROJECT_ID}/${_IMAGE_NAME}:${BUILD_ID}'
+      - '.'
+  - name: 'bash'
+    args:
+      - '-c'
+      - |
+        sed -i 's#gcr.io/cloud-solutions-images/${_IMAGE_NAME}:1.0.0#gcr.io/${PROJECT_ID}/${_IMAGE_NAME}:${BUILD_ID}#' ./k8s/deployment/*.yml
+        sed -i 's#value: "spring_profile"#value: "${_SPRING_PROFILE}"#' ./k8s/deployment/*.yml
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+      - '--namespace=default'
+      - 'apply'
+      - '-R'
+      - '-f'
+      - './k8s/'
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=${_CLUSTER_ZONE}'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+logsBucket: 'gs://${_STORAGE_BUCKET_NAME}/logs/builds/${_IMAGE_NAME}'
+availableSecrets:
+  secretManager:
+    - versionName: projects/439322218149/secrets/GITLAB_USERNAME/versions/latest
+      env: 'GITLAB_USERNAME'
+    - versionName: projects/439322218149/secrets/GITLAB_PASSWORD/versions/latest
+      env: 'GITLAB_PASSWORD'
+options:
+  logging: GCS_ONLY
